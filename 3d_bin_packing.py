@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import plotly.graph_objects as go
 
-
 # Define container dimensions
 container = {'length': 10, 'width': 10, 'height': 10}
 
