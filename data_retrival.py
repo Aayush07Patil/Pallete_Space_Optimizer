@@ -1,14 +1,16 @@
 import pandas as pd
 from datetime import datetime
 
-# Data import
-awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
-awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
-flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
-aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127.xlsx', sheet_name=0)
+def data_import():
+    awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
+    awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
+    flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
+    aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127.xlsx', sheet_name=0)
 
-# Rename columns for consistency
-flight_master.rename(columns={'FlightID': 'FltNumber', 'Source': 'FltOrigin'}, inplace=True)
+    # Rename columns for consistency
+    flight_master.rename(columns={'FlightID': 'FltNumber', 'Source': 'FltOrigin'}, inplace=True)
+
+    return awb_route_master, awb_dimensions, flight_master, aircraft_master
 
 def convert_dimensions_to_inches(awb_dimensions):
     # Conversion factor
@@ -131,11 +133,8 @@ def complete_products_list(products):
     
     return(expanded_items)
 
-def main(awb_dimensions, flight_master, aircraft_master, awb_route_master):
-    # Example inputs
-    FltNumber = "WS425"
-    FltOrigin = "YYZ"
-    Date = "2024-10-29 00:00:00.000"
+def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
+
     FltDate = datetime.strptime(Date, "%Y-%m-%d %H:%M:%S.%f")
 
     # Convert cms to inches
@@ -144,14 +143,18 @@ def main(awb_dimensions, flight_master, aircraft_master, awb_route_master):
     # Get palettes
     Palette_result = get_aircraft_details_with_date(FltNumber, FltOrigin, FltDate, flight_master, aircraft_master)
     Palette_space = complete_containers(Palette_result)
-    #print(f"Palettes = {Palette_space}")
 
     # Get products
     Product_result = get_awb_dimensions(FltNumber, FltOrigin, FltDate, awb_route_master, awb_dimensions)
     Product_list = complete_products_list(Product_result)
-    #print(f"Products = {Product_list}")
     
     return Palette_space, Product_list
 
 if __name__ == "__main__":
-    main(awb_dimensions, flight_master, aircraft_master, awb_route_master)
+    awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
+    FltNumber = "WS009"
+    FltOrigin = "CDG"
+    Date = "2024-11-20 00:00:00.000"
+    Palette_space, Product_list = main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
+    print(f"Palettes = {Palette_space}")
+    print(f"Products = {Product_list}")  
