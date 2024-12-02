@@ -95,7 +95,7 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
 
         # Convert to list of dictionaries
         keys = ['SerialNumber', 'MeasureUnit', 'Length', 'Breadth', 
-                'Height', 'PcsCount', 'PieceType', 'GrossWt']
+                'Height', 'PcsCount', 'PieceType', 'ULDCategory', 'GrossWt']
         records = filtered_awb_dimensions[keys].to_dict(orient='records')
 
         # Add unique IDs
@@ -121,17 +121,20 @@ def complete_containers(containers):
 
 def complete_products_list(products):
     expanded_items = []
-    current_id = 1 
-
     for item in products:
         for _ in range(item['PcsCount']):
             new_item = item.copy()
-            new_item['id'] = current_id
-            del new_item['PcsCount'] 
+            new_item.pop('PcsCount', None)
             expanded_items.append(new_item)
-            current_id += 1 
-    
-    return(expanded_items)
+
+    # Sort items: move items with PieceType "ULD" to the top
+    sorted_items = sorted(expanded_items, key=lambda x: x['PieceType'] != 'ULD')
+
+    # Reset IDs
+    for idx, item in enumerate(sorted_items, start=1):
+        item['id'] = idx
+
+    return sorted_items
 
 def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
 
