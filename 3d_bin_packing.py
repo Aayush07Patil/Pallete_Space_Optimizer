@@ -33,6 +33,25 @@ def fits(container, placed_products, x, y, z, l, w, h):
 
     return True
 
+def preprocess_containers_and_products(products, containers):
+    # Filter products of type 'ULD'
+    uld_products = [p for p in products if p['PieceType'] == 'ULD']
+    blocked_containers = []
+
+    # Check if containers with matching ULDCategory are available
+    for product in uld_products:
+        matching_container = next((c for c in containers if c['ULDCategory'] == product['ULDCategory']), None)
+        if matching_container:
+            print(f"Product {product['id']} (ULDCategory: {product['ULDCategory']}) blocks container {matching_container['id']}.")
+            blocked_containers.append(matching_container)
+            containers.remove(matching_container)
+            products.remove(product)  # Exclude the product from packing
+
+    # Remove blocked containers from the container list
+    containers = [c for c in containers if c not in blocked_containers]
+
+    return products, containers, blocked_containers
+
 def pack_products_sequentially(containers, products):
     placed_products = []  # To store placed products with positions
     remaining_products = products[:]  # Copy of the products list to track unplaced items
@@ -75,6 +94,7 @@ def pack_products_sequentially(containers, products):
             break
 
     return placed_products, remaining_products
+
 
 def visualize_separate_containers_with_plotly(containers, placed_products):
     colors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow', 'pink', 'cyan', 'lime', 'magenta']
@@ -136,10 +156,32 @@ def main():
     FltOrigin = "CDG"
     Date = "2024-11-20 00:00:00.000"
     Palette_space, Product_list = data_retrival.main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
-    
+
     containers = Palette_space
     products = Product_list
-    
+    products =  [
+        {'id': 1, 'SerialNumber': 801907, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1130.0}, 
+        {'id': 2, 'SerialNumber': 801908, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 930.0}, 
+        {'id': 3, 'SerialNumber': 802388, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1},
+        {'id': 4, 'SerialNumber': 802402, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1}, 
+        {'id': 5, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 6, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 7, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 8, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 9, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 10, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 11, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 12, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 13, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
+        {'id': 14, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}
+    ]
+    # Preprocess containers and products to block ULD-related containers/products
+    products, containers, blocked_containers = preprocess_containers_and_products(products, containers)
+
+    print("\nBlocked Containers:")
+    for c in blocked_containers:
+        print(f"Container {c['id']} (ULDCategory: {c['ULDCategory']}) is blocked.")
+
     placed_products, remaining_products = pack_products_sequentially(containers, products)
 
     print("\nPlaced Products:")
@@ -151,6 +193,7 @@ def main():
         print(f"Product {p['id']} could not be placed.")
 
     visualize_separate_containers_with_plotly(containers, placed_products)
+
 
 if __name__ == "__main__":
     main()

@@ -62,7 +62,10 @@ def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_mast
             # Filter aircraft_master
             filtered_aircraft = aircraft_master[
                 aircraft_master['AircraftType'] == aircraft_type
-            ]
+            ].copy()
+
+            # Replace NaN in ULDCategory with blank strings
+            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("N")
 
             # Convert each row to a dictionary
             keys = ['ULDCategory', 'Length', 'Width', 'Height', 'Count', 'Weight']
@@ -92,6 +95,9 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
         filtered_awb_dimensions = awb_dimensions.merge(
             awb_keys, on=['AWBPrefix', 'AWBNumber'], how='inner'
         )
+
+        # Replace NaN in ULDCategory with blank strings
+        filtered_awb_dimensions['ULDCategory'] = filtered_awb_dimensions['ULDCategory'].fillna("")
 
         # Convert to list of dictionaries
         keys = ['SerialNumber', 'MeasureUnit', 'Length', 'Breadth', 
