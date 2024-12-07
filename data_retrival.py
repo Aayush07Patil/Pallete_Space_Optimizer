@@ -86,10 +86,12 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
         (awb_route_master['FltOrigin'] == flt_origin) &
         (awb_route_master['FltDate'].dt.date == flt_date.date())
     ]
+    
+    print(filtered_awb_route)
 
     if not filtered_awb_route.empty:
         # Get AWBPrefix and AWBNumber
-        awb_keys = filtered_awb_route[['AWBPrefix', 'AWBNumber']].drop_duplicates()
+        awb_keys = filtered_awb_route[['AWBPrefix', 'AWBNumber', 'DestinationCode']].drop_duplicates()
 
         # Merge with awb_dimensions
         filtered_awb_dimensions = awb_dimensions.merge(
@@ -101,7 +103,7 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
 
         # Convert to list of dictionaries
         keys = ['SerialNumber', 'MeasureUnit', 'Length', 'Breadth', 
-                'Height', 'PcsCount', 'PieceType', 'ULDCategory', 'GrossWt']
+                'Height', 'PcsCount', 'PieceType', 'ULDCategory', 'GrossWt', 'DestinationCode']
         records = filtered_awb_dimensions[keys].to_dict(orient='records')
 
         # Add unique IDs
@@ -134,7 +136,10 @@ def complete_products_list(products):
             expanded_items.append(new_item)
 
     # Sort items: move items with PieceType "ULD" to the top
-    sorted_items = sorted(expanded_items, key=lambda x: x['PieceType'] != 'ULD')
+    sorted_items = sorted(
+        expanded_items, 
+        key=lambda x: (x['PieceType'] != 'ULD', x['DestinationCode'])
+    )
 
     # Reset IDs
     for idx, item in enumerate(sorted_items, start=1):
@@ -165,5 +170,5 @@ if __name__ == "__main__":
     FltOrigin = "CDG"
     Date = "2024-11-20 00:00:00.000"
     Palette_space, Product_list = main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
-    print(f"Palettes = {Palette_space}")
+    #print(f"Palettes = {Palette_space}")
     print(f"Products = {Product_list}")  

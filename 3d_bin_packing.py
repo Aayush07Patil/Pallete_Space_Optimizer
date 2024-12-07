@@ -160,21 +160,35 @@ def main():
     containers = Palette_space
     products = Product_list
     products =  [
-        {'id': 1, 'SerialNumber': 801907, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1130.0}, 
-        {'id': 2, 'SerialNumber': 801908, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 930.0}, 
-        {'id': 3, 'SerialNumber': 802388, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1},
-        {'id': 4, 'SerialNumber': 802402, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1}, 
-        {'id': 5, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 6, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 7, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 8, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 9, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 10, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 11, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 12, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 13, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}, 
-        {'id': 14, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0}
+        {'id': 1, 'SerialNumber': 801907, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1130.0, 'DestinationCode': 'CVG'}, 
+        {'id': 2, 'SerialNumber': 801908, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 930.0, 'DestinationCode': 'CVG'}, 
+        {'id': 3, 'SerialNumber': 802388, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 4, 'SerialNumber': 802402, 'MeasureUnit': 'Inches', 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 5, 'SerialNumber': 802916, 'MeasureUnit': 'Inches', 'Length': 106.3, 'Breadth': 59.06, 'Height': 31.5, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 6, 'SerialNumber': 802928, 'MeasureUnit': 'Inches', 'Length': 106.3, 'Breadth': 59.06, 'Height': 31.5, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 7, 'SerialNumber': 802924, 'MeasureUnit': 'Inches', 'Length': 106.3, 'Breadth': 59.06, 'Height': 31.5, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 8, 'SerialNumber': 804042, 'MeasureUnit': 'Inches', 'Length': 106.3, 'Breadth': 59.06, 'Height': 31.5, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1123.1, 'DestinationCode': 'CVG'}, 
+        {'id': 9, 'SerialNumber': 805435, 'MeasureUnit': 'Inches', 'Length': 74.41, 'Breadth': 52.36, 'Height': 48.03, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 685.0, 'DestinationCode': 'CVG'}, 
+        {'id': 10, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'},
+        {'id': 11, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 12, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 13, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 14, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 15, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 16, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 17, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 17, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 18, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 18, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 19, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 19, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 20, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 21, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 21, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 22, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}, 
+        {'id': 23, 'SerialNumber': 803887, 'MeasureUnit': 'Inches', 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX'}
     ]
+
     # Preprocess containers and products to block ULD-related containers/products
     products, containers, blocked_containers = preprocess_containers_and_products(products, containers)
 
