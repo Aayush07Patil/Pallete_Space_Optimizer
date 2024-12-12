@@ -1,16 +1,20 @@
 import pandas as pd
 from datetime import datetime
+from collections import defaultdict
 
 def data_import():
-    awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
-    awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
-    flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
-    aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127.xlsx', sheet_name=0)
-
-    # Rename columns for consistency
+    try:
+        awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
+        awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
+        flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
+        aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127 revised.xlsx', sheet_name=0)
+    except FileNotFoundError as e:
+        print(f"Error loading file: {e}")
+        return None, None, None, None
+    
     flight_master.rename(columns={'FlightID': 'FltNumber', 'Source': 'FltOrigin'}, inplace=True)
-
     return awb_route_master, awb_dimensions, flight_master, aircraft_master
+
 
 def convert_dimensions_to_inches(awb_dimensions):
     # Conversion factor
@@ -87,7 +91,7 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
         (awb_route_master['FltDate'].dt.date == flt_date.date())
     ]
     
-    print(filtered_awb_route)
+    #print(filtered_awb_route)
 
     if not filtered_awb_route.empty:
         # Get AWBPrefix and AWBNumber
@@ -122,6 +126,7 @@ def complete_containers(containers):
             new_container = container.copy()
             new_container['id'] = current_id
             del new_container['Count']
+            new_container['Volume'] = round(new_container['Length'] * new_container['Width'] * new_container['Height'],2)
             expanded_containers.append(new_container)
             current_id += 1  # 
     
@@ -133,6 +138,8 @@ def complete_products_list(products):
         for _ in range(item['PcsCount']):
             new_item = item.copy()
             new_item.pop('PcsCount', None)
+            new_item.pop('MeasureUnit', None)
+            new_item['Volume'] = round(new_item['Length'] * new_item['Breadth'] * new_item['Height'],2)
             expanded_items.append(new_item)
 
     # Sort items: move items with PieceType "ULD" to the top
@@ -146,6 +153,27 @@ def complete_products_list(products):
         item['id'] = idx
 
     return sorted_items
+
+def group_products_by_type_and_destination(products):
+    # List to hold grouped lists of products
+    grouped_products = []
+    
+    # Extract all products with PieceType "ULD"
+    uld_products = [product for product in products if product["PieceType"] == "ULD"]
+    grouped_products.append(uld_products)  # Add ULD products as the first group
+    
+    # Group remaining products by DestinationCode
+    remaining_products = [product for product in products if product["PieceType"] != "ULD"]
+    destination_groups = defaultdict(list)
+    
+    for product in remaining_products:
+        destination_groups[product["DestinationCode"]].append(product)
+    
+    # Add each destination group as a separate list
+    for destination, group in destination_groups.items():
+        grouped_products.append(group)
+    
+    return grouped_products
 
 def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
 
@@ -161,8 +189,9 @@ def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNu
     # Get products
     Product_result = get_awb_dimensions(FltNumber, FltOrigin, FltDate, awb_route_master, awb_dimensions)
     Product_list = complete_products_list(Product_result)
+    Products = group_products_by_type_and_destination(Product_list)
     
-    return Palette_space, Product_list
+    return Palette_space, Products
 
 if __name__ == "__main__":
     awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
@@ -170,5 +199,5 @@ if __name__ == "__main__":
     FltOrigin = "CDG"
     Date = "2024-11-20 00:00:00.000"
     Palette_space, Product_list = main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
-    #print(f"Palettes = {Palette_space}")
-    print(f"Products = {Product_list}")  
+    #print(f"\nPalettes = {Palette_space}")
+    print(f"\nProducts = {Product_list}")  
