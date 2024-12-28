@@ -1,4 +1,5 @@
 from itertools import permutations
+from collections import defaultdict
 import math
 import time
 import plotly.graph_objects as go
@@ -22,19 +23,38 @@ def get_orientations(product):
     return set(permutations([product['Length'], product['Breadth'], product['Height']]))
 
 def fits(container, placed_products, x, y, z, l, w, h):
+    epsilon = 1e-6
     # Check container bounds
-    if x + l > container['Length'] or y + w > container['Width'] or z + h > container['Height']:
+    if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
         return False
 
     # Check for overlap with existing products
     for p in placed_products:
         px, py, pz, pl, pw, ph = p['position']
-        if not (x + l <= px or px + pl <= x or
-                y + w <= py or py + pw <= y or
-                z + h <= pz or pz + ph <= z):
+        if not (x + l <= px or px + pl <= x + epsilon or
+                y + w <= py or py + pw <= y + epsilon or
+                z + h <= pz or pz + ph <= z + epsilon):
             return False
 
     return True
+
+def has_support(x, y, z, l, w, placed_products):
+    if z == 0:  # On the container floor
+        return True
+
+    for p in placed_products:
+        px, py, pz, pl, pw, ph = p['position']
+        # Check if the product lies directly beneath the current product
+        if px <= x < px + pl and py <= y < py + pw and pz + ph == z:
+            # Calculate the overlapping area
+            overlap_length = min(x + l, px + pl) - max(x, px)
+            overlap_width = min(y + w, py + pw) - max(y, py)
+            
+            # If at least 50% of the product's bottom is covered by the placed product
+            if overlap_length * overlap_width >= (l * w) / 2:
+                return True
+
+    return False
 
 def preprocess_containers_and_products(products, containers):
     # Filter products of type 'ULD'
@@ -52,64 +72,139 @@ def preprocess_containers_and_products(products, containers):
 
     # Remove blocked containers from the container list
     containers = [c for c in containers if c not in blocked_containers]
+    blocked_ULD_containers = blocked_containers
 
-    return products, containers, blocked_containers
+    return products, containers, blocked_containers, blocked_ULD_containers
 
 def pack_products_sequentially(containers, products, blocked_container):
     placed_products = []  # To store placed products with positions
     remaining_products = products[:]  # Copy of the products list to track unplaced items
     used_container = []
+    missed_products_count = 0
+    retry_count = 0
     
-    for container in containers:
-        print(f"Placing products in container {container['id']} ({container['ULDCategory']})")
-        container_placed = []  # Track products placed in this specific container
-        container_volume = container['Volume']
-        occupied_volume = 0
+    if retry_count <= 3:
         
-        for product in remaining_products[:]:  # Iterate over a copy to avoid issues
-            placed = False
-            if occupied_volume >= 0.9 * container_volume:
-                print("Container is 90% full. Skipping further placements.")
-                if container not in used_container:
-                    used_container.append(container)
-                break
+        for container in containers:
+            print(f"Placing products in container {container['id']} ({container['ULDCategory']})")
+            container_placed = []  # Track products placed in this specific container
+            container_volume = container['Volume']
+            occupied_volume = 0
+            
+            
+            for product in remaining_products[:]:  # Iterate over a copy to avoid issues
         
-            for orientation in get_orientations(product):
-                l, w, h = orientation
-                for x in range(math.floor(container['Length'] - l + 0.2)):
-                    for y in range(math.floor(container['Width'] - w + 0.2)):
-                        for z in range(math.floor(container['Height'] - h + 0.2)):
-                            if fits(container, container_placed, x, y, z, l, w, h):
-                                product_data = {
-                                    'id': product['id'],
-                                    'SerialNumber': product['SerialNumber'],
-                                    'position': (x, y, z, l, w, h),
-                                    'container': container['id']
-                                }
-                                placed_products.append(product_data)
-                                container_placed.append(product_data)
-                                remaining_products.remove(product)
-                                placed = True
-                                if container not in used_container:
-                                    used_container.append(container)
+                placed = False
+                """if occupied_volume >= 0.75 * container_volume:
+                    print("Container is 80 percent full. Skipping further placements.")
+                    if container not in used_container:
+                        used_container.append(container)
+                    break"""
+                if missed_products_count <= 3:
+                    
+                    for orientation in get_orientations(product):
+                        l, w, h = orientation
+                        for x in range(0,math.floor(container['Length'] - l)):
+                            for y in range(0,math.floor(container['Width'] - w )):
+                                for z in range(0,math.floor(container['Height'] - h)):
+                                    if fits(container, container_placed, x, y, z, l, w, h):
+                                        product_data = {
+                                            'id': product['id'],
+                                            'SerialNumber': product['SerialNumber'],
+                                            'position': (x, y, z, l, w, h),
+                                            'container': container['id']
+                                        }
+                                        occupied_volume = occupied_volume + product['Volume']
+                                        remaining_volume_percentage = (container_volume - occupied_volume)/container_volume
+                                        print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}")
+                                        
+                                        placed_products.append(product_data)
+                                        container_placed.append(product_data)
+                                        remaining_products.remove(product)
+                                        placed = True
+                                        if container not in used_container:
+                                            used_container.append(container)
+                                        break
+                                if placed:
+                                    break
+                            if placed:
                                 break
                         if placed:
                             break
-                    if placed:
+
+                    if not placed:
+                        print(f"Product {product['id']} could not be placed in container {container['id']}.")
+                        missed_products_count += 1
+                        if container not in used_container:
+                            used_container.append(container)
+                    
+            else:
+                
+                print("\nSwitching list around\n")
+                remaining_products = remaining_products[::-1]
+                missed_products_count = 0
+        
+                    
+                for product in remaining_products[:]:  # Iterate over a copy to avoid issues
+            
+                    placed = False
+                    """if occupied_volume >= 0.75 * container_volume:
+                        print("Container is 80 percent full. Skipping further placements.")
+                        if container not in used_container:
+                            used_container.append(container)
+                        break"""
+                    if missed_products_count <=3:
+                        for orientation in get_orientations(product):
+                            l, w, h = orientation
+                            for x in range(0,math.floor(container['Length'] - l)):
+                                for y in range(0,math.floor(container['Width'] - w)):
+                                    for z in range(0,math.floor(container['Height'] - h)):
+                                        if fits(container, container_placed, x, y, z, l, w, h):
+                                            product_data = {
+                                                'id': product['id'],
+                                                'SerialNumber': product['SerialNumber'],
+                                                'position': (x, y, z, l, w, h),
+                                                'container': container['id']
+                                            }
+                                            occupied_volume = occupied_volume + product['Volume']
+                                            remaining_volume_percentage = (container_volume - occupied_volume)/container_volume
+                                            print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}")
+                                            
+                                            placed_products.append(product_data)
+                                            container_placed.append(product_data)
+                                            remaining_products.remove(product)
+                                            placed = True
+                                            if container not in used_container:
+                                                used_container.append(container)
+                                            break
+                                    if placed:
+                                        break
+                                if placed:
+                                    break
+                            if placed:
+                                break
+
+                        if not placed:
+                            print(f"Product {product['id']} could not be placed in container {container['id']}.")
+                            missed_products_count += 1
+                            if container not in used_container:
+                                used_container.append(container)
+                    else:
+                        blocked_container.extend(used_container)
+                        remaining_products = remaining_products[::-1]
+                        missed_products_count = 0
                         break
-                if placed:
-                    break
-
-            if not placed:
-                print(f"Product {product['id']} could not be placed in container {container['id']}.")
-                if container not in used_container:
-                    used_container.append(container)
-
-        if not remaining_products:
-            print("All products have been placed.")
-            blocked_container.extend(used_container)
-            break
-    
+                            
+            if not remaining_products:
+                print("All products have been placed.")
+                blocked_container.extend(used_container)
+                break
+            
+        retry_count += 1
+        
+    else:
+        print("Retries done")
+              
     containers = [c for c in containers if c not in blocked_container]
     return placed_products, remaining_products, blocked_container, containers
 
@@ -141,7 +236,7 @@ def visualize_separate_containers_with_plotly(containers, placed_products):
                     alphahull=0,
                     color=colors[p['id'] % len(colors)],
                     opacity=1.0,
-                    name=f"{p['SerialNumber']} (Container {container['id']})"
+                    name=f"{p['id']})"
                 ))
 
         # Calculate aspect ratio based on container dimensions
@@ -170,17 +265,18 @@ def visualize_separate_containers_with_plotly(containers, placed_products):
 
 def process(products, containers, blocked_containers):
     placed= []
+    unplaced = []
     
     for product in products:
         
         # Preprocess containers and products to block ULD-related containers products
-        products, containers, blocked_containers = preprocess_containers_and_products(product, containers)
+        products, containers_, blocked_containers, blocked_ULD_containers = preprocess_containers_and_products(product, containers)
 
         print("\nBlocked Containers:")
         for c in blocked_containers:
             print(f"Container {c['id']} (ULDCategory: {c['ULDCategory']}) is blocked.")
 
-        placed_products, remaining_products, blocked_containers, containers = pack_products_sequentially(containers, products, blocked_containers)
+        placed_products, remaining_products, blocked_containers, containers_ = pack_products_sequentially(containers_, products, blocked_containers)
         
         print("\nPlaced Products:")
         for p in placed_products:
@@ -190,8 +286,17 @@ def process(products, containers, blocked_containers):
         print("\nUnplaced Products:")
         for p in remaining_products:
             print(f"Product {p['id']} could not be placed.")
-    
-    return placed
+        unplaced.extend(remaining_products)
+        
+        grouped_data = defaultdict(list)
+        for item in unplaced:
+            grouped_data[item["DestinationCode"]].append(item)
+
+        # Convert to a list of lists
+        result = list(grouped_data.values())
+        
+        containers_ = [item for item in containers if item not in blocked_ULD_containers]            
+    return placed, unplaced
 
 
 def main():
@@ -203,7 +308,7 @@ def main():
 
     containers = Palette_space
     products = Product_list
-    '''
+    """
     products =  [
         [
             {'id': 1, 'SerialNumber': 801907, 'Length': 125.0, 'Breadth': 96.0, 'Height': 64.0, 'PieceType': 'ULD', 'ULDCategory': 'LD7', 'GrossWt': 1130.0, 'DestinationCode': 'CVG', 'Volume': 768000.0}, 
@@ -237,16 +342,21 @@ def main():
             {'id': 25, 'SerialNumber': 803887, 'Length': 34.25, 'Breadth': 22.44, 'Height': 16.14, 'PieceType': 'Bulk', 'ULDCategory': '', 'GrossWt': 1000.0, 'DestinationCode': 'LAX', 'Volume': 12404.72}
         ]
     ]
-    '''
+    """
     
     blocked_containers = []
     start_time = time.time()
-    placed_products = process(products, containers, blocked_containers)
+    placed_products, unplaced_products = process(products, containers, blocked_containers)
+    print("Placed Products")
+    print(placed_products)
+    print("Unplaced Products")
+    print(unplaced_products)
     end_time= time.time()
     time_elapsed = end_time - start_time
     print(f"Time taken for execution {time_elapsed}")
-    visualize_separate_containers_with_plotly(containers, placed_products)
 
+    visualize_separate_containers_with_plotly(containers, placed_products)
+    #visualize_separate_containers_with_matplotlib(containers, placed_products)
 
 if __name__ == "__main__":
     main()

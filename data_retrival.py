@@ -1,4 +1,5 @@
 import pandas as pd
+import json
 from datetime import datetime
 from collections import defaultdict
 
@@ -157,7 +158,7 @@ def complete_products_list(products):
 def group_products_by_type_and_destination(products):
     # List to hold grouped lists of products
     grouped_products = []
-    
+    bulk_products = []
     # Extract all products with PieceType "ULD"
     uld_products = [product for product in products if product["PieceType"] == "ULD"]
     grouped_products.append(uld_products)  # Add ULD products as the first group
@@ -171,7 +172,14 @@ def group_products_by_type_and_destination(products):
     
     # Add each destination group as a separate list
     for destination, group in destination_groups.items():
-        grouped_products.append(group)
+        print(destination)
+        bulk_products.append(sorted(group, key=lambda x: x["Volume"], reverse=True))
+        rearranged_list = sorted(
+            bulk_products,
+            key=lambda sublist: sum(item['Volume'] for item in sublist),
+            reverse=True
+        )
+    grouped_products.extend(rearranged_list)
     
     return grouped_products
 
@@ -200,4 +208,10 @@ if __name__ == "__main__":
     Date = "2024-11-20 00:00:00.000"
     Palette_space, Product_list = main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
     #print(f"\nPalettes = {Palette_space}")
-    print(f"\nProducts = {Product_list}")  
+    #print(f"\nProducts = {Product_list}")  
+    json_data = json.dumps(Product_list, indent=4)
+    # Open the file in write mode
+    with open("output.txt", "w") as file:
+        file.writelines(json_data)
+
+    print("Output successfully written to output.txt")
