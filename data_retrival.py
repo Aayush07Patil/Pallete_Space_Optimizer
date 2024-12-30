@@ -92,8 +92,6 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
         (awb_route_master['FltDate'].dt.date == flt_date.date())
     ]
     
-    #print(filtered_awb_route)
-
     if not filtered_awb_route.empty:
         # Get AWBPrefix and AWBNumber
         awb_keys = filtered_awb_route[['AWBPrefix', 'AWBNumber', 'DestinationCode']].drop_duplicates()
@@ -106,9 +104,16 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
         # Replace NaN in ULDCategory with blank strings
         filtered_awb_dimensions['ULDCategory'] = filtered_awb_dimensions['ULDCategory'].fillna("")
 
+        # Create AWBNumber concatenated column
+        filtered_awb_dimensions['awb_number'] = (
+            filtered_awb_dimensions['AWBPrefix'].astype(str) + '-' +
+            filtered_awb_dimensions['AWBNumber'].astype(str)
+        )
+
         # Convert to list of dictionaries
         keys = ['SerialNumber', 'MeasureUnit', 'Length', 'Breadth', 
-                'Height', 'PcsCount', 'PieceType', 'ULDCategory', 'GrossWt', 'DestinationCode']
+                'Height', 'PcsCount', 'PieceType', 'ULDCategory', 
+                'GrossWt', 'DestinationCode', 'awb_number']
         records = filtered_awb_dimensions[keys].to_dict(orient='records')
 
         # Add unique IDs
@@ -116,6 +121,7 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
 
     # Return empty list if no match found
     return []
+
 
 def complete_containers(containers):
     
@@ -172,16 +178,24 @@ def group_products_by_type_and_destination(products):
     
     # Add each destination group as a separate list
     for destination, group in destination_groups.items():
-        print(destination)
         bulk_products.append(sorted(group, key=lambda x: x["Volume"], reverse=True))
         rearranged_list = sorted(
             bulk_products,
-            key=lambda sublist: sum(item['Volume'] for item in sublist),
+            key=lambda sublist: sum(item['Volume'] for item in sublist) / len(sublist) if sublist else 0,
             reverse=True
         )
     grouped_products.extend(rearranged_list)
     
     return grouped_products
+
+def volumes_list_for_each_destination(Products):
+    total_volumes = [sum(item["Volume"] for item in sublist) for sublist in Products]
+    result = {"ULDs": sum(item["Volume"] for item in Products[0])}
+    for sublist in Products[1:]:
+        destination_code = sublist[0]["DestinationCode"]
+        result[destination_code] = sum(item["Volume"] for item in sublist)
+
+    return result
 
 def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
 
@@ -198,18 +212,21 @@ def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNu
     Product_result = get_awb_dimensions(FltNumber, FltOrigin, FltDate, awb_route_master, awb_dimensions)
     Product_list = complete_products_list(Product_result)
     Products = group_products_by_type_and_destination(Product_list)
+    DC_total_volumes = volumes_list_for_each_destination(Products)
     
-    return Palette_space, Products
+    return Palette_space, Products, DC_total_volumes
 
 if __name__ == "__main__":
     awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
     FltNumber = "WS009"
     FltOrigin = "CDG"
     Date = "2024-11-20 00:00:00.000"
-    Palette_space, Product_list = main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date)
-    #print(f"\nPalettes = {Palette_space}")
-    #print(f"\nProducts = {Product_list}")  
-    json_data = json.dumps(Product_list, indent=4)
+    Palette_space, Products, DC_total_volumes = main(
+        awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date
+    )
+    print(Palette_space)
+    print(DC_total_volumes)
+    json_data = json.dumps(Products, indent=4)
     # Open the file in write mode
     with open("output.txt", "w") as file:
         file.writelines(json_data)
