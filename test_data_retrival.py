@@ -5,10 +5,10 @@ from collections import defaultdict
 
 def data_import():
     try:
-        awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
-        awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
-        flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
-        aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127 revised.xlsx', sheet_name=0)
+        awb_route_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=1)
+        awb_dimensions = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=2)
+        flight_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=4)
+        aircraft_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=3)
     except FileNotFoundError as e:
         print(f"Error loading file: {e}")
         return None, None, None, None
@@ -59,6 +59,7 @@ def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_mast
         filtered_flight = filtered_flight[
             filtered_flight['FrequencyList'].apply(lambda freq: freq[day_of_week] > 0)
         ]
+        #print(filtered_flight['FrequencyList'], day_of_week)
         
         if not filtered_flight.empty:
             # Get the AirCraftType
@@ -70,7 +71,12 @@ def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_mast
             ].copy()
 
             # Replace NaN in ULDCategory with blank strings
-            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("N")
+            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("")
+
+            # Convert ULDCategory to a list (comma-separated values become a list; single values become a single-item list)
+            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].apply(
+                lambda x: x.split(',') if isinstance(x, str) else [x]
+            )
 
             # Convert each row to a dictionary
             keys = ['ULDCategory', 'Length', 'Width', 'Height', 'Count', 'Weight']
@@ -80,6 +86,7 @@ def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_mast
             return add_ids_to_records(records)
 
     return []
+
 
 def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_dimensions):
     # Ensure FltDate in awb_route_master is datetime
@@ -148,7 +155,8 @@ def complete_products_list(products):
             new_item = item.copy()
             new_item.pop('PcsCount', None)
             new_item.pop('MeasureUnit', None)
-            new_item['Volume'] = round(new_item['Length'] * new_item['Breadth'] * new_item['Height'],2)
+            new_item['Volume'] = new_item['Length'] * new_item['Breadth'] * new_item['Height']
+            new_item['Density'] = (new_item['GrossWt']/new_item['Volume'])
             expanded_items.append(new_item)
 
     # Sort items: move items with PieceType "ULD" to the top
@@ -167,28 +175,60 @@ def group_products_by_type_and_destination(products):
     # List to hold grouped lists of products
     grouped_products = []
     bulk_products = []
+    id_count = 1
+
     # Extract all products with PieceType "ULD"
     uld_products = [product for product in products if product["PieceType"] == "ULD"]
+    for idx, item in enumerate(uld_products, start=id_count):
+        item['id'] = idx
+        id_count += 1
     grouped_products.append(uld_products)  # Add ULD products as the first group
-    
+
     # Group remaining products by DestinationCode
     remaining_products = [product for product in products if product["PieceType"] != "ULD"]
     destination_groups = defaultdict(list)
-    
+
     for product in remaining_products:
         destination_groups[product["DestinationCode"]].append(product)
-    
-    # Add each destination group as a separate list
+
+    # Process each destination group
     for destination, group in destination_groups.items():
-        bulk_products.append(sorted(group, key=lambda x: x["Volume"], reverse=True))
-        rearranged_list = sorted(
-            bulk_products,
-            key=lambda sublist: sum(item['Volume'] for item in sublist) / len(sublist) if sublist else 0,
-            reverse=True
-        )
-    grouped_products.extend(rearranged_list)
-    
+        bulk_products.append(sorted(group, key=lambda x: x["Density"], reverse=True))
+
+    # Rearrange groups by average Volume in descending order
+    rearranged_list = sorted(
+        bulk_products,
+        key=lambda sublist: sum(item['Volume'] for item in sublist) / len(sublist) if sublist else 0,
+        reverse=True
+    )
+
+    # Move products with GrossWt > 200 to the top
+    heavy_products = []
+    remaining_products = []
+
+    for sublist in rearranged_list:
+        for product in sublist:
+            if product['GrossWt'] > 200:
+                heavy_products.append(product)
+            else:
+                remaining_products.append(product)
+
+    # Sort heavy products by GrossWt in descending order
+    heavy_products.sort(key=lambda x: x['GrossWt'], reverse=True)
+
+    # Combine heavy products and remaining products
+    final_list = heavy_products + remaining_products
+
+    # Assign IDs to products
+    for item in final_list:
+        if isinstance(item, dict):  # Ensure the item is a dictionary
+            item['id'] = id_count
+            id_count += 1
+
+    grouped_products.append(final_list)
+
     return grouped_products
+
 
 def volumes_list_for_each_destination(Products):
     total_volumes = [sum(item["Volume"] for item in sublist) for sublist in Products]
@@ -199,12 +239,17 @@ def volumes_list_for_each_destination(Products):
 
     return result
 
-def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
-
+def main():
+    awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
+    FltNumber = "GG4515"
+    FltOrigin = "MIA"
+    Date = "2024-12-08 00:00:00.000"
+    
+    
     FltDate = datetime.strptime(Date, "%Y-%m-%d %H:%M:%S.%f")
 
     # Convert cms to inches
-    awb_dimensions = convert_dimensions_to_inches(awb_dimensions)
+    #awb_dimensions = convert_dimensions_to_inches(awb_dimensions)
     
     # Get palettes
     Palette_result = get_aircraft_details_with_date(FltNumber, FltOrigin, FltDate, flight_master, aircraft_master)
@@ -219,13 +264,7 @@ def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNu
     return Palette_space, Products, DC_total_volumes
 
 if __name__ == "__main__":
-    awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
-    FltNumber = "WS009"
-    FltOrigin = "CDG"
-    Date = "2024-11-20 00:00:00.000"
-    Palette_space, Products, DC_total_volumes = main(
-        awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date
-    )
+    Palette_space, Products, DC_total_volumes = main()
     print(Palette_space)
     print(DC_total_volumes)
     json_data = json.dumps(Products, indent=4)
