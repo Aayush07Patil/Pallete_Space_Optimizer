@@ -39,16 +39,6 @@ def fits(container, placed_products, x, y, z, l, w, h):
 
     return True
 
-def fits_with_existing(existing_placements, x, y, z, l, w, h):
-    for (px, py, pz, pl, pw, ph) in existing_placements:
-        if not (
-            x + l <= px or x >= px + pl or  # No overlap in x
-            y + w <= py or y >= py + pw or  # No overlap in y
-            z + h <= pz or z >= pz + ph    # No overlap in z
-        ):
-            return False  # Overlaps with an existing product
-    return True
-
 def preprocess_containers_and_products(products, containers, blocked_for_ULD):
     # Filter products of type 'ULD'
     uld_products = [p for p in products if p['PieceType'] == 'ULD']
@@ -68,141 +58,115 @@ def preprocess_containers_and_products(products, containers, blocked_for_ULD):
     containers = [c for c in containers if c not in blocked_containers]
     return products, containers, blocked_containers, blocked_for_ULD
 
-def pack_products_sequentially(containers, products, blocked_container, DC_total_volumes):
-    placed_products = []  # To store placed products with positions
+def pack_products_sequentially(containers, products, blocked_containers, DC_total_volumes):
+    """
+    Pack products into containers sequentially based on volume constraints and dimensions.
+
+    Parameters:
+        containers (list): List of available containers with their dimensions and volumes.
+        products (list): List of products to be placed with their dimensions and volumes.
+        blocked_containers (list): List of containers that are blocked.
+        DC_total_volumes (dict): Mapping of destination codes to total allowable volumes.
+
+    Returns:
+        tuple: (placed_products, remaining_products, blocked_containers, available_containers)
+    """
+    placed_products = []
+    remaining_products = products[:]
+    used_containers = []
+    missed_product_count = 0
+    running_volume_sum = 0
+
     if products:
         destination_code = products[0]['DestinationCode']
-        print("\n")
-        print(destination_code)
+        print(f"\nProcessing Destination Code: {destination_code}")
     else:
         destination_code = 'ULDs'
-    remaining_products = products[:]  # Copy of the products list to track unplaced items
-    used_container = []
-    missed_products_count = 0
-    runing_volume_sum = 0
-    
+
     for container in containers:
         print(f"Placing products in container {container['id']} ({container['ULDCategory']})")
-        container_placed = []  # Track products placed in this specific container
+        container_placed = []  # Products placed in the current container
         container_volume = container['Volume']
         occupied_volume = 0
 
-        
-        for product in remaining_products[:]:  # Iterate over a copy to avoid issues
-            DC_Volume = [DC_total_volumes.get(product['DestinationCode'], "Key not found")][0]
-            if not (DC_Volume - runing_volume_sum) > 0.8*(container_volume):
+        for product in remaining_products[:]:
+            dc_volume = DC_total_volumes.get(product['DestinationCode'], 0)
+
+            # Check volume constraints
+            if not (dc_volume - running_volume_sum) > 0.8 * container_volume:
                 print("Volume constraint not satisfied, stopping process.")
-                blocked_container.extend(used_container)
-                containers = [c for c in containers if c not in blocked_container]
-                runing_volume_sum = 0
-                 
-                return placed_products, remaining_products, blocked_container, containers
-                
-            placed = False
-            if missed_products_count < 3:
-                
-                for orientation in get_orientations(product):
-                    l, w, h = orientation
-                    for x in range(0,math.floor(container['Length'] - l)):
-                        for y in range(0,math.floor(container['Width'] - w )):
-                            for z in range(0,math.floor(container['Height'] - h)):
-                                if fits(container, container_placed, x, y, z, l, w, h):
-                                    product_data = {
-                                        'id': product['id'],
-                                        'position': (x, y, z, l, w, h),
-                                        'container': container['id'],
-                                        'Volume': product['Volume'],
-                                        'DestinationCode': product['DestinationCode'],
-                                        'awb_number': product['awb_number']
-                                    }
-                                    occupied_volume = occupied_volume + product['Volume']
-                                    remaining_volume_percentage = round(((container_volume - occupied_volume)*100/container_volume),2)
-                                    print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}%")
-                                    runing_volume_sum += product['Volume']
-                                    placed_products.append(product_data)
-                                    container_placed.append(product_data)
-                                    #print(f"\nContainer Placed:\n{container_placed}")
-                                    remaining_products.remove(product)
-                                    placed = True
-                                    if container not in used_container:
-                                        used_container.append(container)
-                                    break
-                            if placed:
-                                break
-                        if placed:
-                            break
-                    if placed:
-                        break
+                blocked_containers.extend(used_containers)
+                remaining_containers = [c for c in containers if c not in blocked_containers]
+                running_volume_sum = 0
+                return placed_products, remaining_products, blocked_containers, remaining_containers
 
-                if not placed:
-                    print(f"Product {product['id']} could not be placed in container {container['id']}.")
-                    missed_products_count += 1
-                    if container not in used_container:
-                        used_container.append(container)
-                
-        else:
-            
-            print("\nSwitching list around\n")
-            remaining_products = remaining_products[::-1]
-            missed_products_count = 0
-    
-                
-            for product in remaining_products[:]:  # Iterate over a copy to avoid issues
-        
-                placed = False
-                if missed_products_count < 3:
-                    for orientation in get_orientations(product):
-                        l, w, h = orientation
-                        for x in range(0,math.floor(container['Length'] - l)):
-                            for y in range(0,math.floor(container['Width'] - w)):
-                                for z in range(0,math.floor(container['Height'] - h)):
-                                    if fits(container, container_placed, x, y, z, l, w, h):
-                                        product_data = {
-                                            'id': product['id'],
-                                            'position': (x, y, z, l, w, h),
-                                            'container': container['id'],
-                                            'Volume': product['Volume'],
-                                            'DestinationCode': product['DestinationCode'],
-                                            'awb_number': product['awb_number']
-                                        }
-                                        occupied_volume = occupied_volume + product['Volume']
-                                        remaining_volume_percentage = round(((container_volume - occupied_volume)*100/container_volume),2)
-                                        print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}%")
-                                        runing_volume_sum += product['Volume']
-                                        placed_products.append(product_data)
-                                        container_placed.append(product_data)
-                                        #print(f"Container Placed:\n{container_placed}")
-                                        remaining_products.remove(product)
-                                        placed = True
-                                        if container not in used_container:
-                                            used_container.append(container)
-                                        break
-                                if placed:
-                                    break
-                            if placed:
-                                break
-                        if placed:
-                            break
+            if missed_product_count >= 3:
+                print("Too many missed products. Blocking containers.")
+                blocked_containers.extend(used_containers)
+                break
 
-                    if not placed:
-                        print(f"Product {product['id']} could not be placed in container {container['id']}.")
-                        missed_products_count += 1
-                        if container not in used_container:
-                            used_container.append(container)
-                        remaining_products = remaining_products[::-1]
-                        
-                else:
-                    blocked_container.extend(used_container)
-                    break
-                           
+            placed = try_place_product(product, container, container_placed, occupied_volume, placed_products)
+
+            if placed:
+                running_volume_sum += product['Volume']
+                remaining_products.remove(product)
+                if container not in used_containers:
+                    used_containers.append(container)
+            else:
+                print(f"Product {product['id']} could not be placed in container {container['id']}.")
+                missed_product_count += 1
+
         if not remaining_products:
             print(f"All products have been placed for {destination_code}")
             running_volume_sum = 0
-            blocked_container.extend(used_container)
+            blocked_containers.extend(used_containers)
             break
-    
-    containers = [c for c in containers if c not in blocked_container]
-    return placed_products, remaining_products, blocked_container, containers
+
+        # Reverse remaining products for next iteration
+        if missed_product_count >= 3:
+            print("Reversing product list for retry.")
+            remaining_products = remaining_products[::-1]
+            missed_product_count = 0
+
+    remaining_containers = [c for c in containers if c not in blocked_containers]
+    return placed_products, remaining_products, blocked_containers, remaining_containers
+
+
+def try_place_product(product, container, container_placed, occupied_volume, placed_products):
+    """
+    Attempt to place a product in the container.
+
+    Parameters:
+        product (dict): The product to be placed.
+        container (dict): The container to place the product in.
+        container_placed (list): List of already placed products in the container.
+        occupied_volume (float): Current occupied volume of the container.
+        placed_products (list): List of all placed products.
+
+    Returns:
+        bool: True if the product was successfully placed, False otherwise.
+    """
+    for orientation in get_orientations(product):
+        l, w, h = orientation
+        for x in range(0, math.floor(container['Length'] - l)):
+            for y in range(0, math.floor(container['Width'] - w)):
+                for z in range(0, math.floor(container['Height'] - h)):
+                    if fits(container, container_placed, x, y, z, l, w, h):
+                        product_data = {
+                            'id': product['id'],
+                            'position': (x, y, z, l, w, h),
+                            'container': container['id'],
+                            'Volume': product['Volume'],
+                            'DestinationCode': product['DestinationCode'],
+                            'awb_number': product['awb_number']
+                        }
+                        container_placed.append(product_data)
+                        placed_products.append(product_data)
+                        occupied_volume += product['Volume']
+                        remaining_volume_percentage = round(((container['Volume'] - occupied_volume) * 100 / container['Volume']), 2)
+                        print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume: {remaining_volume_percentage}%")
+                        return True
+    return False
 
 
 
@@ -237,7 +201,7 @@ def visualize_separate_containers_with_plotly(containers, placed_products):
                     alphahull=0,
                     color=colors[p['id'] % len(colors)],
                     opacity=1.0,
-                    name=f"{p['id']})"
+                    name=f"{p['awb_number']})"
                 ), row=1, col=2)
 
         destination_codes_list = list(destination_codes)
@@ -245,19 +209,19 @@ def visualize_separate_containers_with_plotly(containers, placed_products):
 
         # Convert awb_data to a DataFrame
         awb_table_data = pd.DataFrame([
-            {'AWB Number': awb, 'DestinationCode': data['DestinationCode'], 'Product Count': data['Count']}
+            {'AWB Number': awb, 'DestinationCode': data['DestinationCode'], 'Pieces': data['Count']}
             for awb, data in awb_data.items()
         ])
-        awb_table_data.sort_values(by='AWB Number', inplace=True)  # Optional: Sort by AWB Number
+        awb_table_data.sort_values(by='Pieces', inplace=True, ascending=False)  # Optional: Sort by AWB Number
 
         # Add table to the left column
         table_trace = go.Table(
-            header=dict(values=['AWB Number', 'Destination Code', 'Product Count'], fill_color='lightblue', align='left'),
+            header=dict(values=['AWB Number', 'Destination Code', 'Pieces'], fill_color='lightblue', align='left'),
             cells=dict(
                 values=[
                     awb_table_data['AWB Number'],
                     awb_table_data['DestinationCode'],
-                    awb_table_data['Product Count']
+                    awb_table_data['Pieces']
                 ],
                 fill_color='white',
                 align='left'
@@ -324,11 +288,7 @@ def process(products, containers, blocked_containers, DC_total_volumes):
         placed.extend(placed_products)
         unplaced.extend(remaining_products)
         
-        #print(f"\nBlocked_containers:\n{blocked_containers}")
-        #print(f"\nContainers:\n{containers_tp}")
-        #print(blocked_for_ULD)
-        
-    #print("\nAttempting to place unplaced products in remaining spaces...")
+    print("\nAttempting to place unplaced products in remaining spaces...")
     second_pass_placed = []
     placed = sorted(placed, key=lambda x:x['Volume'])
     used_container = []
@@ -366,8 +326,8 @@ def process(products, containers, blocked_containers, DC_total_volumes):
                                             'DestinationCode': product['DestinationCode'],
                                             'awb_number': product['awb_number']     
                                         }
-                                        occupied_volume = occupied_volume + product['Volume']
-                                        remaining_volume_percentage = (container_volume - occupied_volume)/container_volume
+                                        occupied_volume += product['Volume']
+                                        remaining_volume_percentage =  round(((container['Volume'] - occupied_volume) * 100 / container['Volume']), 2)
                                         print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}")
                                         placed.append(product_data)
                                         placed_products_in_container.append(product_data)
@@ -411,7 +371,7 @@ def process(products, containers, blocked_containers, DC_total_volumes):
                                                 'Volume': product['Volume'],
                                                 'awb_number': product['awb_number']
                                             }
-                                            occupied_volume = occupied_volume + product['Volume']
+                                            occupied_volume += product['Volume']
                                             remaining_volume_percentage = (container_volume - occupied_volume)/container_volume
                                             print(f"Product {product['id']} placed in container {container['id']}\n Remaining volume in container = {remaining_volume_percentage}")
                                             placed.append(product_data)

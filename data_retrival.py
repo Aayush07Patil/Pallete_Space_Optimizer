@@ -124,20 +124,22 @@ def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_d
 
 
 def complete_containers(containers):
-    
     expanded_containers = []
     current_id = 1 
 
     for container in containers:
-        for _ in range(container['Count']):
+        # Convert 'Count' to an integer if it is a float
+        count = int(container['Count']) if not pd.isna(container['Count']) else 0
+        for _ in range(count):
             new_container = container.copy()
             new_container['id'] = current_id
             del new_container['Count']
-            new_container['Volume'] = round(new_container['Length'] * new_container['Width'] * new_container['Height'],2)
+            new_container['Volume'] = round(new_container['Length'] * new_container['Width'] * new_container['Height'], 2)
             expanded_containers.append(new_container)
             current_id += 1  # 
     
     return expanded_containers
+
 
 def complete_products_list(products):
     expanded_items = []
@@ -218,9 +220,9 @@ def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNu
 
 if __name__ == "__main__":
     awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
-    FltNumber = "WS009"
-    FltOrigin = "CDG"
-    Date = "2024-11-20 00:00:00.000"
+    FltNumber = "M6811"
+    FltOrigin = "MIA"
+    Date = "2024-12-16 00:00:00.000"
     Palette_space, Products, DC_total_volumes = main(
         awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date
     )
