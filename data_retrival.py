@@ -228,7 +228,7 @@ if __name__ == "__main__":
     )
     print(Palette_space)
     print(DC_total_volumes)
-    json_data = json.dumps(Products, indent=4)
+    json_data = json.dumps(Palette_space, indent=4)
     # Open the file in write mode
     with open("output.txt", "w") as file:
         file.writelines(json_data)
