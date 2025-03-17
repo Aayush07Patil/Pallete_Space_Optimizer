@@ -1,16 +1,23 @@
 import pandas as pd
 import json
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
+
 
 def data_import():
     try:
-        awb_route_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=1)
-        awb_dimensions = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=2)
-        flight_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=4)
-        aircraft_master = pd.read_excel('D:\\GIT\\Pallete_Space_Optimizer\\data\\Booking and Dims Data Dec 24.xlsx', sheet_name=3)
+        awb_route_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=0)
+        awb_dimensions = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/WS route and Dims.xlsx', sheet_name=1)
+        flight_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/Flight master with Aircraft.xlsx', sheet_name=0)
+        aircraft_master = pd.read_excel('D:/GIT/Pallete_Space_Optimizer/data/AirCraft Master 1127 revised.xlsx', sheet_name=0)
     except FileNotFoundError as e:
-        print(f"Error loading file: {e}")
+        print(f"File not found: {e}")
+        return None, None, None, None
+    except pd.errors.ParserError as e:
+        print(f"Error parsing file: {e}")
+        return None, None, None, None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return None, None, None, None
     
     flight_master.rename(columns={'FlightID': 'FltNumber', 'Source': 'FltOrigin'}, inplace=True)
@@ -18,17 +25,12 @@ def data_import():
 
 
 def convert_dimensions_to_inches(awb_dimensions):
-    # Conversion factor
     cm_to_inch = 0.393701
+    mask = awb_dimensions['MeasureUnit'] == 'Cms'
 
-    # Convert dimensions for rows where MeasureUnit is 'Cms'
-    awb_dimensions.loc[awb_dimensions['MeasureUnit'] == 'Cms', ['Length', 'Breadth', 'Height']] = (
-        awb_dimensions.loc[awb_dimensions['MeasureUnit'] == 'Cms', ['Length', 'Breadth', 'Height']]
-        * cm_to_inch
-    ).round(2)
-
-    # Update MeasureUnit to 'Inches' for these rows
-    awb_dimensions.loc[awb_dimensions['MeasureUnit'] == 'Cms', 'MeasureUnit'] = 'Inches'
+    if mask.any():
+        awb_dimensions.loc[mask, ['Length', 'Breadth', 'Height']] *= cm_to_inch
+        awb_dimensions.loc[mask, 'MeasureUnit'] = 'Inches'
 
     return awb_dimensions
 
@@ -43,50 +45,34 @@ def add_ids_to_records(records):
 def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_master, aircraft_master):
     day_of_week = flt_date.weekday()  # Monday = 0, Sunday = 6
 
-    # Filter flight_master
     filtered_flight = flight_master[
         (flight_master['FltNumber'] == flt_number) & 
         (flight_master['FltOrigin'] == flt_origin)
     ].copy()
-    
+
     if not filtered_flight.empty:
-        # Convert frequency to a list of integers
+        # Ensure Frequency is a valid list before applying map(int, x.split(','))
+        filtered_flight = filtered_flight[filtered_flight['Frequency'].str.match(r'^\d(,\d)*$')]
+
         filtered_flight['FrequencyList'] = filtered_flight['Frequency'].apply(
-            lambda x: list(map(int, x.split(',')))
+            lambda x: list(map(int, x.split(','))) if isinstance(x, str) else []
         )
 
-        # Check if the flight operates on the given day
-        filtered_flight = filtered_flight[
-            filtered_flight['FrequencyList'].apply(lambda freq: freq[day_of_week] > 0)
-        ]
-        #print(filtered_flight['FrequencyList'], day_of_week)
+        # Filter by day of week
+        filtered_flight = filtered_flight[filtered_flight['FrequencyList'].apply(lambda freq: freq[day_of_week] > 0)]
         
         if not filtered_flight.empty:
-            # Get the AirCraftType
             aircraft_type = filtered_flight.iloc[0]['AirCraftType']
 
-            # Filter aircraft_master
-            filtered_aircraft = aircraft_master[
-                aircraft_master['AircraftType'] == aircraft_type
-            ].copy()
+            filtered_aircraft = aircraft_master[aircraft_master['AircraftType'] == aircraft_type].copy()
+            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("N")
 
-            # Replace NaN in ULDCategory with blank strings
-            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("")
-
-            # Convert ULDCategory to a list (comma-separated values become a list; single values become a single-item list)
-            filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].apply(
-                lambda x: x.split(',') if isinstance(x, str) else [x]
-            )
-
-            # Convert each row to a dictionary
             keys = ['ULDCategory', 'Length', 'Width', 'Height', 'Count', 'Weight']
             records = filtered_aircraft[keys].to_dict(orient='records')
 
-            # Add unique IDs
             return add_ids_to_records(records)
 
     return []
-
 
 def get_awb_dimensions(flt_number, flt_origin, flt_date, awb_route_master, awb_dimensions):
     # Ensure FltDate in awb_route_master is datetime
@@ -155,8 +141,7 @@ def complete_products_list(products):
             new_item = item.copy()
             new_item.pop('PcsCount', None)
             new_item.pop('MeasureUnit', None)
-            new_item['Volume'] = new_item['Length'] * new_item['Breadth'] * new_item['Height']
-            new_item['Density'] = (new_item['GrossWt']/new_item['Volume'])
+            new_item['Volume'] = round(new_item['Length'] * new_item['Breadth'] * new_item['Height'],2)
             expanded_items.append(new_item)
 
     # Sort items: move items with PieceType "ULD" to the top
@@ -172,63 +157,27 @@ def complete_products_list(products):
     return sorted_items
 
 def group_products_by_type_and_destination(products):
-    # List to hold grouped lists of products
     grouped_products = []
-    bulk_products = []
-    id_count = 1
+    
+    uld_products = [p for p in products if p["PieceType"] == "ULD"]
+    grouped_products.append(uld_products)
 
-    # Extract all products with PieceType "ULD"
-    uld_products = [product for product in products if product["PieceType"] == "ULD"]
-    for idx, item in enumerate(uld_products, start=id_count):
-        item['id'] = idx
-        id_count += 1
-    grouped_products.append(uld_products)  # Add ULD products as the first group
-
-    # Group remaining products by DestinationCode
-    remaining_products = [product for product in products if product["PieceType"] != "ULD"]
     destination_groups = defaultdict(list)
-
-    for product in remaining_products:
-        destination_groups[product["DestinationCode"]].append(product)
-
-    # Process each destination group
-    for destination, group in destination_groups.items():
-        bulk_products.append(sorted(group, key=lambda x: x["Density"], reverse=True))
-
-    # Rearrange groups by average Volume in descending order
-    rearranged_list = sorted(
+    for product in products:
+        if product["PieceType"] != "ULD":
+            destination_groups[product["DestinationCode"]].append(product)
+    
+    bulk_products = [sorted(group, key=lambda x: x["Volume"], reverse=True) for group in destination_groups.values()]
+    
+    bulk_products = sorted(
         bulk_products,
         key=lambda sublist: sum(item['Volume'] for item in sublist) / len(sublist) if sublist else 0,
         reverse=True
     )
 
-    # Move products with GrossWt > 200 to the top
-    heavy_products = []
-    remaining_products = []
-
-    for sublist in rearranged_list:
-        for product in sublist:
-            if product['GrossWt'] > 200:
-                heavy_products.append(product)
-            else:
-                remaining_products.append(product)
-
-    # Sort heavy products by GrossWt in descending order
-    heavy_products.sort(key=lambda x: x['GrossWt'], reverse=True)
-
-    # Combine heavy products and remaining products
-    final_list = heavy_products + remaining_products
-
-    # Assign IDs to products
-    for item in final_list:
-        if isinstance(item, dict):  # Ensure the item is a dictionary
-            item['id'] = id_count
-            id_count += 1
-
-    grouped_products.append(final_list)
-
+    grouped_products.extend(bulk_products)
+    
     return grouped_products
-
 
 def volumes_list_for_each_destination(Products):
     total_volumes = [sum(item["Volume"] for item in sublist) for sublist in Products]
@@ -239,17 +188,12 @@ def volumes_list_for_each_destination(Products):
 
     return result
 
-def main():
-    awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
-    FltNumber = "GG4515"
-    FltOrigin = "MIA"
-    Date = "2024-12-08 00:00:00.000"
-    
-    
+def main(awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date):
+
     FltDate = datetime.strptime(Date, "%Y-%m-%d %H:%M:%S.%f")
 
     # Convert cms to inches
-    #awb_dimensions = convert_dimensions_to_inches(awb_dimensions)
+    awb_dimensions = convert_dimensions_to_inches(awb_dimensions)
     
     # Get palettes
     Palette_result = get_aircraft_details_with_date(FltNumber, FltOrigin, FltDate, flight_master, aircraft_master)
@@ -264,12 +208,21 @@ def main():
     return Palette_space, Products, DC_total_volumes
 
 if __name__ == "__main__":
-    Palette_space, Products, DC_total_volumes = main()
-    print(Palette_space)
+    awb_route_master, awb_dimensions, flight_master, aircraft_master = data_import()
+    FltNumber = "WS009"
+    FltOrigin = "CDG"
+    Date = "2024-11-20 00:00:00.000"
+    Palette_space, Products, DC_total_volumes = main(
+        awb_dimensions, flight_master, aircraft_master, awb_route_master, FltNumber, FltOrigin, Date
+    )
+    #print(Palette_space)
     print(DC_total_volumes)
-    json_data = json.dumps(Products, indent=4)
+    json_data_products = json.dumps(Products, indent=4)
+    json_data_pallete = json.dumps(Palette_space, indent=4)
     # Open the file in write mode
-    with open("output.txt", "w") as file:
-        file.writelines(json_data)
+    with open("Products.txt", "w") as file:
+        file.writelines(json_data_products)
+    with open("Palletes.txt", "w") as file:
+        file.writelines(json_data_pallete)
 
     print("Output successfully written to output.txt")

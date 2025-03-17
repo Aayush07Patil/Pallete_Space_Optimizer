@@ -210,4 +210,4 @@ def plot_irregular_cuboid(L, W, H, WX, HX, TB, SD):
         # Show plot
         fig.show()
 # Example usage
-plot_irregular_cuboid(L=30, W=20, H=25, WX=15, HX=22.5, TB='B',SD ='D')
+plot_irregular_cuboid(L=125, W=96, H=63, WX=75, HX=45, TB='B',SD ='D')
