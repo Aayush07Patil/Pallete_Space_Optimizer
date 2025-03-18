@@ -120,7 +120,7 @@
         "Widthx": 54.3,
         "Heightx": 44.1,
         "TB": "B",
-        "SD": "D",
+        "SD": "S",
         "Type": "Container",
         "Weight": 1200,
         "Volume": 302267.81
@@ -134,7 +134,7 @@
         "Widthx": 54.3,
         "Heightx": 44.1,
         "TB": "B",
-        "SD": "D",
+        "SD": "S",
         "Type": "Container",
         "Weight": 1200,
         "Volume": 302267.81

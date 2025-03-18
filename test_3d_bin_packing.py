@@ -4,6 +4,7 @@ import time
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import test_data_retrival
 from collections import defaultdict
 
@@ -254,26 +255,119 @@ def visualize_separate_containers_with_plotly(containers, placed_products):
         )
         fig.add_trace(table_trace, row=1, col=1)
 
-        # Draw container on the 3D plot
-        fig.add_trace(go.Mesh3d(
-            x=[0, container['Length'], container['Length'], 0, 0, container['Length'], container['Length'], 0],
-            y=[0, 0, container['Width'], container['Width'], 0, 0, container['Width'], container['Width']],
-            z=[0, 0, 0, 0, container['Height'], container['Height'], container['Height'], container['Height']],
-            color='lightgrey',
-            opacity=0.1,
-            name=f"{container['ULDCategory']} - {container['id']}"
-        ), row=1, col=2)
+        # Container dimensions
+        L, W, H = container['Length'], container['Width'], container['Height']
+        HX, WX = container['Heightx'], container['Widthx']  # Example offsets
+        W_offset = (W - WX) / 2
 
-        # Calculate aspect ratio based on container dimensions
-        aspect_x = container['Length']
-        aspect_y = container['Width']
-        aspect_z = container['Height']
-        max_dim = max(aspect_x, aspect_y, aspect_z)
-        aspect_ratio = {
-            'x': aspect_x / max_dim,
-            'y': aspect_y / max_dim,
-            'z': aspect_z / max_dim
-        }
+        if container['SD'] == 'S':
+            if container['TB'] == 'T':
+                # Define the vertices based on given parameters
+                vertices = np.array([
+                    [0, 0, 0],          # 0
+                    [0, W, 0],          # 1
+                    [0, 0, H],          # 2
+                    [0, WX, H],         # 3
+                    [0, W, HX],         # 4
+                    [L, 0, 0],          # 5
+                    [L, W, 0],          # 6
+                    [L, 0, H],          # 7
+                    [L, WX, H],         # 8
+                    [L, W, HX]          # 9
+                ])
+            elif container['TB'] == 'B':
+                # Define the vertices based on given parameters
+                vertices = np.array([
+                    [0, 0, 0],          # 0
+                    [0, WX, 0],          # 1
+                    [0, 0, H],          # 2
+                    [0, W, H],         # 3
+                    [0, W, H- HX],         # 4
+                    [L, 0, 0],          # 5
+                    [L, WX, 0],          # 6
+                    [L, 0, H],          # 7
+                    [L, W, H],         # 8
+                    [L, W, H-HX]          # 9
+                ])
+            # Define edges (pairs of vertex indices)
+            edges = [
+                [0, 1], [1, 4], [4, 3], [0, 2], [2, 3],  # Left side edges
+                [5, 6], [6, 9], [9, 8], [5, 7], [7, 8],  # Right side edges
+                [3, 8], [4, 9], [1, 6],  # Connecting edges
+                [2, 7], [0, 5]  # Connecting edges
+            ]
+
+        elif container['SD'] == 'D':
+            if container['TB'] == 'T':
+                # Define vertices
+                vertices = np.array([
+                    [0, 0, 0],             # 0
+                    [0, W, 0],             # 1
+                    [0, 0, HX],            # 2
+                    [0, W_offset, H],      # 3
+                    [0, W_offset + WX, H], # 4
+                    [0, W, HX],            # 5
+                    [L, 0, 0],             # 6
+                    [L, W, 0],             # 7
+                    [L, 0, HX],            # 8
+                    [L, W_offset, H],      # 9
+                    [L, W_offset + WX, H], # 10
+                    [L, W, HX]             # 11
+                ])
+            elif container['TB'] == 'B':
+                # Define vertices
+                vertices = np.array([
+                    [0, W_offset, 0],             # 0
+                    [0, W_offset + WX, 0],             # 1
+                    [0, 0, H-HX],            # 2
+                    [0, 0, H],      # 3
+                    [0, W, H], # 4
+                    [0, W, H-HX],            # 5
+                    [L, W_offset, 0],             # 0
+                    [L, W_offset + WX, 0],             # 1
+                    [L, 0, H-HX],            # 2
+                    [L, 0, H],      # 3
+                    [L, W, H], # 4
+                    [L, W, H-HX]             # 11
+                ])
+
+            edges = [
+                [0, 1], [1, 5], [5, 2], [2, 0], # Left base
+                [6, 7], [7, 11], [11, 8], [8, 6], # Right base
+                [2, 3], [3, 4], [4, 5], # Left top
+                [8, 9], [9, 10], [10, 11], # Right top
+                [3, 9], [4, 10], # Connecting edges
+                [0, 6], [1, 7], [2, 8], [5, 11] # Vertical edges
+            ]
+        
+        # Extract edge coordinates
+        edge_x, edge_y, edge_z = [], [], []
+        for start, end in edges:
+            edge_x += [vertices[start][0], vertices[end][0], None]
+            edge_y += [vertices[start][1], vertices[end][1], None]
+            edge_z += [vertices[start][2], vertices[end][2], None]
+
+        if container['Type'] == 'Container':
+            # Add wireframe container
+            fig.add_trace(go.Scatter3d(
+                x=edge_x, y=edge_y, z=edge_z,
+                mode='lines',
+                line=dict(color='grey', width=4),
+                name=f"Container {container['ULDCategory']} - {container['id']}"
+            ), row=1, col=2)
+        elif container['Type'] == 'Palette':
+            # Add wireframe container
+            fig.add_trace(go.Scatter3d(
+                x=edge_x, y=edge_y, z=edge_z,
+                mode='lines',
+                line=dict(color='grey', width=4, dash='dot'),
+                name=f"Container {container['ULDCategory']} - {container['id']}"
+            ), row=1, col=2)
+
+
+        # Calculate aspect ratio
+        max_dim = max(L, W, H)
+        aspect_ratio = {'x': L / max_dim, 'y': W / max_dim, 'z': H / max_dim}
 
         # Update layout with custom aspect ratio and title
         fig.update_layout(
