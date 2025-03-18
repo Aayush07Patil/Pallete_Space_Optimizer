@@ -12,10 +12,48 @@ def get_orientations(product):
 
 def fits(container, placed_products, x, y, z, l, w, h):
     epsilon = 1e-6
-    # Check container bounds
-    if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
-        return False
-
+    if container['SD'] == 'S':
+        if container['TB'] == "B":
+            limit = container['Height'] - container['Heightx']
+            if z < limit:
+                # Check container bounds
+                if x + l > container['Length'] + epsilon or y + w > container['Widthx'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+            else:
+                if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+        elif container['TB'] == "T":
+            if z < container['Heightx']:
+                # Check container bounds
+                if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+            else:
+                if x + l > container['Length'] + epsilon or y + w > container['Widthx'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+    
+    elif container['SD'] == "D":
+        if container['TB'] == "B":
+            limit_height = container['Height'] - container['Heightx']
+            width_small = (container['Width'] - container['Widthx'])/2
+            if z < limit_height:
+                # Check container bounds
+                if x + l > container['Length'] + epsilon or y < width_small - epsilon or y + w > container['Width'] - width_small + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+            else:
+                if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+        elif container['TB'] == "T":
+            width_small = (container['Width'] - container['Widthx'])/2
+            if z < container['Heightx']:
+                # Check container bounds
+                if x + l > container['Length'] + epsilon or y + w > container['Width'] + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+            else:
+                if x + l > container['Length'] + epsilon or y < width_small - epsilon or y + w > container['Width'] - width_small + epsilon or z + h > container['Height'] + epsilon:
+                    return False
+        
+        
+        
     # Check for overlap with existing products
     for p in placed_products:
         px, py, pz, pl, pw, ph = p['position']

@@ -67,7 +67,7 @@ def get_aircraft_details_with_date(flt_number, flt_origin, flt_date, flight_mast
             filtered_aircraft = aircraft_master[aircraft_master['AircraftType'] == aircraft_type].copy()
             filtered_aircraft['ULDCategory'] = filtered_aircraft['ULDCategory'].fillna("N")
 
-            keys = ['ULDCategory', 'Length', 'Width', 'Height', 'Count', 'Weight']
+            keys = ['ULDCategory', 'Length', 'Width', 'Height', 'Widthx', 'Heightx', 'TB', 'SD', 'Type','Count', 'Weight']
             records = filtered_aircraft[keys].to_dict(orient='records')
 
             return add_ids_to_records(records)
