@@ -541,11 +541,18 @@ def main():
     print("placed_products")
     #print(placed_products)
     print(len(placed_products))
+    with open('new_products.txt', 'w') as f:
+        for item in placed_products:
+            f.write(f"{item}\n")
         
     print("unplaced_products")
     #print(unplaced_products)
     print(len(unplaced_products))
     
+    with open('containers.txt', 'w') as f:
+        for item in containers:
+            f.write(f"{item}\n")
+
     end_time= time.time()
     time_elapsed = end_time - start_time
     print(f"Time taken for execution {time_elapsed}")
